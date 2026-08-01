@@ -175,6 +175,17 @@ export class AisProcessingService {
   }
 
   constructor() {
+    this.targetsDirty$
+      .pipe(throttleTime(THROTTLE_MS, undefined, { leading: true, trailing: true }), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.flushTargetsSignal());
+
+    // Coalesce own-ship updates to the target cadence and only push the signal
+    // when a value actually changed, so the radar doesn't do a full re-render on
+    // every raw GPS/compass fix.
+    this.ownShipDirty$
+      .pipe(throttleTime(THROTTLE_MS, undefined, { leading: true, trailing: true }), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.flushOwnShip());
+
     const aisTree$ = merge(...AIS_TREE_PREFIXES.map(prefix => this.data.subscribePathTree(prefix)));
     aisTree$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -184,22 +195,11 @@ export class AisProcessingService {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(event => this.handleOwnShipTreeUpdate(event));
 
-    this.targetsDirty$
-      .pipe(throttleTime(THROTTLE_MS, undefined, { leading: true, trailing: true }), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.flushTargetsSignal());
-
     // Periodically evict stale targets so the retained set (and thus flush +
     // radar render cost) stays bounded over long uptime.
     interval(EVICTION_SWEEP_MS)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.evictStaleTracks(Date.now()));
-
-    // Coalesce own-ship updates to the target cadence and only push the signal
-    // when a value actually changed, so the radar doesn't do a full re-render on
-    // every raw GPS/compass fix.
-    this.ownShipDirty$
-      .pipe(throttleTime(THROTTLE_MS, undefined, { leading: true, trailing: true }), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.flushOwnShip());
   }
 
   private handleAisTreeUpdate(event: IPathUpdateWithPath): void {

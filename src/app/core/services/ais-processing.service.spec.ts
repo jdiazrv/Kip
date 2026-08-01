@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Subject } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -182,6 +182,78 @@ describe('AisProcessingService applyAisUpdate dispatch', () => {
     const track = trackByContext(VESSEL_CONTEXT);
     expect(track).toBeDefined();
     expect(track!.ais.status).toBe('confirmed');
+  });
+});
+
+describe('AisProcessingService initial tree snapshots', () => {
+  function makeEvent(fullPath: string, value: unknown): IPathUpdateWithPath {
+    return {
+      path: fullPath,
+      update: {
+        data: { value, timestamp: new Date('2026-06-24T00:00:00Z') },
+        state: 'normal'
+      }
+    } as IPathUpdateWithPath;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('publishes cached AIS targets emitted synchronously during construction', () => {
+    TestBed.configureTestingModule({
+      providers: [AisProcessingService, {
+        provide: DataService,
+        useValue: {
+          subscribePathTree: (prefix: string) => new Observable<IPathUpdateWithPath>(subscriber => {
+            if (prefix.startsWith('vessels.')) {
+              subscriber.next(makeEvent('vessels.urn:mrn:imo:mmsi:123456789.mmsi', '123456789'));
+              subscriber.next(makeEvent('vessels.urn:mrn:imo:mmsi:123456789.navigation.position', {
+                latitude: 37.1,
+                longitude: 23.4
+              }));
+            }
+          }),
+          removePathsForContext: vi.fn()
+        } as Partial<DataService>
+      }]
+    });
+
+    const service = TestBed.inject(AisProcessingService);
+    vi.advanceTimersByTime(300);
+
+    const target = service.targets().find(item => item.mmsi === '123456789');
+    expect(target?.position?.latitude).toBe(37.1);
+    expect(target?.position?.longitude).toBe(23.4);
+  });
+
+  it('publishes cached own-ship navigation emitted synchronously during construction', () => {
+    TestBed.configureTestingModule({
+      providers: [AisProcessingService, {
+        provide: DataService,
+        useValue: {
+          subscribePathTree: (prefix: string) => new Observable<IPathUpdateWithPath>(subscriber => {
+            if (prefix === 'self.navigation.*') {
+              subscriber.next(makeEvent('self.navigation.position', {
+                latitude: 37.2,
+                longitude: 23.5
+              }));
+            }
+          }),
+          removePathsForContext: vi.fn()
+        } as Partial<DataService>
+      }]
+    });
+
+    const service = TestBed.inject(AisProcessingService);
+    vi.advanceTimersByTime(300);
+
+    expect(service.ownShip().position?.latitude).toBe(37.2);
+    expect(service.ownShip().position?.longitude).toBe(23.5);
   });
 });
 

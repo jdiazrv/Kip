@@ -89,7 +89,7 @@
         <span>TCPA</span>
         <span>Age</span>
       </div>
-      @for (row of listRows(); track trackListRow($index, row)) {
+      @for (row of computedListRows(); track trackListRow($index, row)) {
         <button
           type="button"
           class="ais-target-list-row"

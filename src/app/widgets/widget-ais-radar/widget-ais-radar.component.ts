@@ -268,8 +268,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   });
 
   protected readonly hasCollisionRiskData = this.ais.hasCollisionRiskData;
-  protected readonly listRows = signal<AisListRow[]>([]);
-  private readonly computedListRows = computed<AisListRow[]>(() => {
+  protected readonly computedListRows = computed<AisListRow[]>(() => {
     const ownPosition = this.ais.ownShip().position;
     const hasOwnPosition = this.hasValidPosition(ownPosition);
     const cfg = this.runtime.options()?.ais ?? WidgetAisRadarComponent.DEFAULT_CONFIG.ais!;
@@ -303,13 +302,6 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
         this.syncFiltersFromConfig(cfg);
       });
       this.scheduleRender();
-    });
-
-    effect(() => {
-      const rows = this.computedListRows();
-      untracked(() => {
-        this.ngZone.run(() => this.listRows.set(rows));
-      });
     });
 
     effect(() => {
@@ -794,7 +786,6 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
 
   private resolveListSubLabel(track: AisTrack): string {
     const details = [
-      this.resolveListTypeLabel(track),
       track.name?.trim() ? track.mmsi : null,
       this.isVesselLike(track) ? track.callsign : null,
       track.ais.class ? `Class ${track.ais.class}` : null
