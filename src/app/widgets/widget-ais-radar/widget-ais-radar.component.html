@@ -2,6 +2,7 @@
   <button
     type="button"
     class="ais-radar-mode-toggle-button"
+    [class.is-hidden]="effectiveDisplayMode() === 'list'"
     matMiniFab
     [matTooltip]="effectiveViewMode() === 'north-up' ? 'Change to North-Up mode' : 'Change to Course-Up mode'"
     [attr.aria-label]="effectiveViewMode() === 'north-up' ? 'North up mode' : 'Course up mode'"
@@ -21,6 +22,7 @@
   <button
     type="button"
     class="ais-radar-range-button ais-radar-range-plus"
+    [class.is-hidden]="effectiveDisplayMode() === 'list'"
     matMiniFab
     matTooltip="Increase range"
     aria-label="Increase range"
@@ -31,6 +33,7 @@
   <button
     type="button"
     class="ais-radar-range-button ais-radar-range-minus"
+    [class.is-hidden]="effectiveDisplayMode() === 'list'"
     matMiniFab
     matTooltip="Decrease range"
     aria-label="Decrease range"
@@ -62,7 +65,54 @@
       <mat-icon>security</mat-icon>
     </button>
   }
-  <svg #radarSvg class="ais-radar" role="img" aria-label="AIS radar display"></svg>
+  <svg #radarSvg class="ais-radar" [class.is-hidden]="effectiveDisplayMode() === 'list'" role="img" aria-label="AIS radar display"></svg>
+  @if (effectiveDisplayMode() === 'list') {
+    <div class="ais-target-list" role="table" aria-label="AIS target list">
+      <div class="ais-target-list-header" role="row">
+        <span>Target</span>
+        <span>Dist</span>
+        <span>Brg</span>
+        <span>SOG</span>
+        <span>COG</span>
+        <span>CPA</span>
+        <span>TCPA</span>
+        <span>Age</span>
+      </div>
+      @for (row of listRows(); track trackListRow($index, row)) {
+        <button
+          type="button"
+          class="ais-target-list-row"
+          [class.risk-high]="row.riskClass === 'risk-high'"
+          [class.risk-medium]="row.riskClass === 'risk-medium'"
+          [class.is-stale]="row.raw.ais.status === 'lost'"
+          role="row"
+          (click)="openListRow(row)"
+        >
+          <span class="ais-list-target">
+            <strong>{{ row.label }}</strong>
+            <small>
+              {{ row.typeLabel }}
+              @if (row.subLabel) {
+                <span>&middot; {{ row.subLabel }}</span>
+              }
+            </small>
+          </span>
+          <span>{{ formatDistance(row.distanceNm) }}</span>
+          <span>{{ formatBearing(row.bearingTrue) }}</span>
+          <span>{{ formatSpeed(row.sog) }}</span>
+          <span>{{ formatBearing(row.cog) }}</span>
+          <span>{{ formatDistance(row.cpaNm) }}</span>
+          <span>{{ formatTime(row.tcpaSeconds) }}</span>
+          <span>{{ formatAge(row.ageSeconds) }}</span>
+        </button>
+      } @empty {
+        <div class="ais-target-list-empty">
+          <mat-icon>radar</mat-icon>
+          <span>No AIS targets with position</span>
+        </div>
+      }
+    </div>
+  }
   <button
     #menuAnchor
     #menuTrigger="matMenuTrigger"

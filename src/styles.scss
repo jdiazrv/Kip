@@ -443,6 +443,96 @@ widget-ais-radar {
     background: var(--kip-card-background-color);
   }
 
+  .is-hidden {
+    display: none !important;
+  }
+
+  .ais-target-list {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    border-radius: 12px;
+    background: var(--kip-card-background-color);
+    color: var(--kip-contrast-color);
+  }
+
+  .ais-target-list-header,
+  .ais-target-list-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 2fr) repeat(7, minmax(64px, 1fr));
+    gap: 8px;
+    align-items: center;
+    min-width: 760px;
+    padding: 8px 10px;
+  }
+
+  .ais-target-list-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--kip-card-background-color);
+    color: var(--kip-contrast-dim-color);
+    border-bottom: 1px solid var(--kip-contrast-dimmer-color);
+  }
+
+  .ais-target-list-row {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--kip-contrast-dimmer-color);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .ais-target-list-row:hover,
+  .ais-target-list-row:focus-visible {
+    background: var(--kip-contrast-dimmer-color);
+    outline: none;
+  }
+
+  .ais-target-list-row.risk-high {
+    color: var(--kip-zone-alarm-color);
+  }
+
+  .ais-target-list-row.risk-medium {
+    color: var(--kip-zone-warn-color);
+  }
+
+  .ais-target-list-row.is-stale {
+    opacity: 0.6;
+  }
+
+  .ais-list-target {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .ais-list-target strong,
+  .ais-list-target small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ais-list-target small {
+    color: var(--kip-contrast-dim-color);
+  }
+
+  .ais-target-list-empty {
+    height: calc(100% - 40px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--kip-contrast-dim-color);
+  }
+
   .radar-rings .ring {
     fill: none;
     stroke-width: 1.75;

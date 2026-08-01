@@ -588,6 +588,17 @@
               @if (($safeNavigationMigration(widgetConfig?.ais) !== undefined)) {
                 <ng-container formGroupName="ais">
                   <mat-form-field>
+                    <mat-label>Display Mode</mat-label>
+                    <mat-select
+                      placeholder="Select display mode..."
+                      formControlName="displayMode"
+                      name="displayMode"
+                      required>
+                      <mat-option value="radar">Radar</mat-option>
+                      <mat-option value="list">List</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field>
                     <mat-label>View Mode</mat-label>
                     <mat-select
                       placeholder="Select view mode..."

@@ -395,6 +395,8 @@ export interface IWidgetSvcConfig {
 }
 
 export interface IAISRadarConfig {
+  /** AIS widget presentation mode. */
+  displayMode?: 'radar' | 'list';
   /** Optional filter settings for AIS targets. */
   filters?: IAISRadarFilterConfig;
   /** Radar orientation: follow vessel course or keep north at the top. */

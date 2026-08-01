@@ -20,6 +20,7 @@ import { resolveIconKey, resolveOwnShipIconDataUrl, resolveThemedIconDataUrl, VE
 import { COLLISION_RISK_HIGH_THRESHOLD, COLLISION_RISK_LOW_THRESHOLD } from '../../core/utils/ais-svg-icon.util';
 
 type ViewMode = 'north-up' | 'course-up';
+type AisDisplayMode = 'radar' | 'list';
 type RadarFilterKey = 'anchoredMoored' | 'noCollisionRisk' | 'allAton' | 'allButSar' | 'allVessels';
 
 interface RadarSize {
@@ -105,6 +106,22 @@ interface TargetMenuItem {
   target: AisTrack;
 }
 
+interface AisListRow {
+  id: string;
+  raw: AisTrack;
+  label: string;
+  typeLabel: string;
+  subLabel: string;
+  distanceNm: number;
+  bearingTrue: number | null;
+  sog: number | null;
+  cog: number | null;
+  cpaNm: number | null;
+  tcpaSeconds: number | null;
+  ageSeconds: number | null;
+  riskClass: string;
+}
+
 interface RadarFilterState {
   anchoredMoored: boolean;
   noCollisionRisk: boolean;
@@ -155,6 +172,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
         allVessels: false,
         vesselTypes: []
       },
+      displayMode: 'radar',
       viewMode: 'course-up',
       rangeRings: [1, 3, 6, 12, 24, 48],
       rangeIndex: '3',
@@ -177,6 +195,9 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   private readonly localRangeIndex = signal<number | null>(null);
   protected readonly effectiveViewMode = computed<ViewMode>(() => {
     return this.localViewMode() ?? (this.runtime.options()?.ais?.viewMode ?? 'course-up');
+  });
+  protected readonly effectiveDisplayMode = computed<AisDisplayMode>(() => {
+    return this.runtime.options()?.ais?.displayMode === 'list' ? 'list' : 'radar';
   });
   protected readonly effectiveRangeIndex = computed<number>(() => {
     const cfgIndex = this.resolveRangeIndex(this.runtime.options()?.ais);
@@ -242,6 +263,19 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   });
 
   protected readonly hasCollisionRiskData = this.ais.hasCollisionRiskData;
+  protected readonly listRows = computed<AisListRow[]>(() => {
+    const ownPosition = this.ais.ownShip().position;
+    if (!ownPosition || !this.hasValidPosition(ownPosition)) return [];
+    const cfg = this.runtime.options()?.ais ?? WidgetAisRadarComponent.DEFAULT_CONFIG.ais!;
+    const showLost = cfg.showLostTargets ?? true;
+    const showUnconfirmed = cfg.showUnconfirmedTargets ?? true;
+
+    return this.ais.targets()
+      .filter(track => this.shouldShowInList(track, showLost, showUnconfirmed))
+      .map(track => this.toListRow(track, ownPosition))
+      .filter((row): row is AisListRow => row !== null)
+      .sort((a, b) => a.distanceNm - b.distanceNm);
+  });
 
   constructor() {
     this.warnIfRemoteDataDisabled();
@@ -349,6 +383,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
 
   private render(): void {
     if (!this.renderState || !this.svg || !this.root || !this.rotationGroup) return;
+    if (this.effectiveDisplayMode() === 'list') return;
     const { size, cfg, theme, targets, ownShip } = this.renderState;
     const width = Math.max(1, size.width);
     const height = Math.max(1, size.height);
@@ -640,6 +675,97 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
       default:
         return `${shortKey.charAt(0).toUpperCase()}${shortKey.slice(1)}`;
     }
+  }
+
+  protected openListRow(row: AisListRow): void {
+    this.openTargetDialog(row.raw, this.resolveIconCached(row.raw).href);
+  }
+
+  protected trackListRow(_index: number, row: AisListRow): string {
+    return row.id;
+  }
+
+  protected formatDistance(value: number | null | undefined): string {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+    return `${value.toFixed(value < 10 ? 1 : 0)} nm`;
+  }
+
+  protected formatBearing(value: number | null | undefined): string {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+    return `${this.wrapDegrees(value).toFixed(0)}°`;
+  }
+
+  protected formatSpeed(value: number | null | undefined): string {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+    const knots = this.units.convertToUnit('knots', value);
+    return typeof knots === 'number' && Number.isFinite(knots) ? `${knots.toFixed(1)} kn` : '--';
+  }
+
+  protected formatTime(value: number | null | undefined): string {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+    const sign = value < 0 ? '-' : '';
+    const absSeconds = Math.abs(value);
+    const minutes = Math.floor(absSeconds / 60);
+    const seconds = Math.round(absSeconds % 60);
+    if (minutes < 60) return `${sign}${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+    const hours = Math.floor(minutes / 60);
+    return `${sign}${hours}h ${(minutes % 60).toString().padStart(2, '0')}m`;
+  }
+
+  protected formatAge(value: number | null | undefined): string {
+    return this.formatTime(value);
+  }
+
+  private shouldShowInList(track: AisTrack, showLost: boolean, showUnconfirmed: boolean): boolean {
+    if (track.ais.status === 'remove') return false;
+    if (track.ais.status === 'lost' && !showLost) return false;
+    if (track.ais.status === 'unconfirmed' && !showUnconfirmed) return false;
+    if (!track.position || !this.hasValidPosition(track.position)) return false;
+    return !this.shouldFilterTarget(track);
+  }
+
+  private toListRow(track: AisTrack, ownPosition: Position): AisListRow | null {
+    if (!track.position || !this.hasValidPosition(track.position)) return null;
+    const distanceNm = this.distanceNm(ownPosition, track.position);
+    const bearingTrue = this.ais.getBearingTrue(ownPosition, track.position);
+    const vessel = this.isVesselLike(track) ? track : null;
+    const ageSeconds = track.lastUpdateAt ? Math.max(0, (Date.now() - track.lastUpdateAt) / 1000) : null;
+    const cpaNm = vessel?.closestApproach?.distance ?? null;
+    const tcpaSeconds = vessel?.closestApproach?.timeTo ?? null;
+    const riskClass = this.resolveRiskClass(vessel);
+    return {
+      id: track.id,
+      raw: track,
+      label: this.buildTargetMenuLabel(track),
+      typeLabel: this.resolveListTypeLabel(track),
+      subLabel: track.mmsi ?? track.ais.class ?? '',
+      distanceNm,
+      bearingTrue,
+      sog: vessel?.speedOverGround ?? null,
+      cog: this.toDegreesIfRadians(vessel?.courseOverGroundTrue) ?? null,
+      cpaNm,
+      tcpaSeconds,
+      ageSeconds,
+      riskClass
+    };
+  }
+
+  private resolveListTypeLabel(track: AisTrack): string {
+    if (this.isAton(track)) return track.typeName ?? 'AtoN';
+    if (track.type === 'sar') return 'SAR';
+    if (track.type === 'basestation') return 'Base';
+    const shipType = this.isVesselLike(track) ? track.design?.aisShipType?.name : undefined;
+    return shipType ?? 'Vessel';
+  }
+
+  private resolveRiskClass(track: AisVessel | AisSar | null): string {
+    if (!track) return '';
+    const rating = track.closestApproach?.collisionRiskRating;
+    const numericRating = typeof rating === 'number' ? rating : Number(rating);
+    if (!Number.isFinite(numericRating)) return '';
+    if (numericRating < COLLISION_RISK_HIGH_THRESHOLD) return 'risk-high';
+    if (numericRating < COLLISION_RISK_LOW_THRESHOLD) return 'risk-medium';
+    return '';
   }
 
   private syncFiltersFromConfig(cfg: IWidgetSvcConfig): void {

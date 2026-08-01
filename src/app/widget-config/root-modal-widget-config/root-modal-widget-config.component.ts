@@ -75,6 +75,7 @@ export class RootModalWidgetConfigComponent implements OnInit {
     });
     this.unitList = this.units.getConversionsForPath(''); // array of Group or Groups: "angle", "speed", etc...
     this.formMaster = this.generateFormGroups(this.widgetConfig);
+    this.ensureAisConfigControls();
     this.setupWindsteerControlState();
     this.formMaster.statusChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -109,6 +110,14 @@ export class RootModalWidgetConfigComponent implements OnInit {
     compassModeControl.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(value => syncCourseOverGroundDisabledState(value));
+  }
+
+  private ensureAisConfigControls(): void {
+    const aisGroup = this.formMaster.get(RootModalWidgetConfigComponent.KEY_AIS) as UntypedFormGroup | null;
+    if (!aisGroup) return;
+    if (!aisGroup.get('displayMode')) {
+      aisGroup.addControl('displayMode', new UntypedFormControl('radar', Validators.required));
+    }
   }
 
   // Helper to ensure we only treat plain object literals as nested groups and not arrays, dates, etc.
