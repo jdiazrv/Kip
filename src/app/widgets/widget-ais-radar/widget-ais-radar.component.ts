@@ -343,7 +343,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
 
   private initSvg(): void {
     this.svg = select(this.svgRef().nativeElement);
-    this.svg.attr('class', 'ais-radar');
+    this.svg.classed('ais-radar', true);
 
     this.root = this.svg.append('g').attr('class', 'radar-root');
     this.ringsLayer = this.root.append('g').attr('class', 'radar-rings');
@@ -749,7 +749,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     const vessel = this.isVesselLike(track) ? track : null;
     const ageSeconds = track.lastPositionAt ? Math.max(0, (Date.now() - track.lastPositionAt) / 1000) : null;
     const cpaNm = this.resolveClosestApproachDistanceNm(vessel);
-    const tcpaSeconds = vessel?.closestApproach?.timeTo ?? null;
+    const tcpaSeconds = this.resolveClosestApproachTimeSeconds(vessel);
     const riskClass = this.resolveRiskClass(vessel);
     return {
       id: track.id,
@@ -825,6 +825,8 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
 
   private resolveRiskClass(track: AisVessel | AisSar | null): string {
     if (!track) return '';
+    const tcpaSeconds = this.resolveClosestApproachTimeSeconds(track);
+    if (tcpaSeconds === null) return '';
     const rating = track.closestApproach?.collisionRiskRating;
     const numericRating = typeof rating === 'number' ? rating : Number(rating);
     if (!Number.isFinite(numericRating)) return '';
@@ -837,6 +839,12 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     const rawDistance = track?.closestApproach?.distance;
     if (typeof rawDistance !== 'number' || !Number.isFinite(rawDistance)) return null;
     return rawDistance / 1852;
+  }
+
+  private resolveClosestApproachTimeSeconds(track: AisVessel | AisSar | null): number | null {
+    const rawTimeTo = track?.closestApproach?.timeTo;
+    if (typeof rawTimeTo !== 'number' || !Number.isFinite(rawTimeTo) || rawTimeTo < 0) return null;
+    return rawTimeTo;
   }
 
   private syncFiltersFromConfig(cfg: IWidgetSvcConfig): void {
@@ -1500,6 +1508,8 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
       return false;
     }
     if (rating === null || rating === undefined) return true;
+    const tcpaSeconds = this.resolveClosestApproachTimeSeconds(track);
+    if (tcpaSeconds === null) return true;
     const numericRating = typeof rating === 'number' ? rating : Number(rating);
     if (!Number.isFinite(numericRating)) return true;
     return numericRating >= COLLISION_RISK_LOW_THRESHOLD;
