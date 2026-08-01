@@ -48,6 +48,16 @@ describe('AisProcessingService applyAisUpdate dispatch', () => {
     } as IPathUpdateWithPath;
   }
 
+  function makeEventWithoutTimestamp(fullPath: string, value: unknown): IPathUpdateWithPath {
+    return {
+      path: fullPath,
+      update: {
+        data: { value, timestamp: null },
+        state: 'normal'
+      }
+    } as IPathUpdateWithPath;
+  }
+
   /**
    * Push a delta and flush the 250ms `targets` throttle so `targets()` updates.
    * The service is zoneless, so we drive RxJS's async scheduler with vitest's
@@ -60,6 +70,11 @@ describe('AisProcessingService applyAisUpdate dispatch', () => {
 
   function pushAt(fullPath: string, value: unknown, timestamp: string): void {
     stream$.next(makeEventAt(fullPath, value, timestamp));
+    vi.advanceTimersByTime(300);
+  }
+
+  function pushWithoutTimestamp(fullPath: string, value: unknown): void {
+    stream$.next(makeEventWithoutTimestamp(fullPath, value));
     vi.advanceTimersByTime(300);
   }
 
@@ -206,6 +221,14 @@ describe('AisProcessingService applyAisUpdate dispatch', () => {
     const track = trackByContext(VESSEL_CONTEXT) as AisVessel;
     expect(track.lastUpdateAt).toBe(new Date('2026-06-24T00:00:10Z').getTime());
     expect(track.lastAisUpdateAt).toBe(new Date('2026-06-24T00:00:00Z').getTime());
+  });
+
+  it('does not treat missing Signal K timestamps as freshly received AIS data', () => {
+    pushWithoutTimestamp(`${VESSEL_CONTEXT}.navigation.speedOverGround`, 5.5);
+
+    const track = trackByContext(VESSEL_CONTEXT) as AisVessel;
+    expect(track.lastUpdateAt).toBeGreaterThan(0);
+    expect(track.lastAisUpdateAt).toBeUndefined();
   });
 });
 

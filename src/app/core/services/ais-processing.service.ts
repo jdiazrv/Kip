@@ -116,6 +116,7 @@ interface AisUpdate {
   path: string;
   value: unknown;
   timestampMs: number;
+  sourceTimestampMs: number | null;
 }
 
 const AIS_TREE_PREFIXES = [
@@ -216,12 +217,14 @@ export class AisProcessingService {
       });
     }
 
+    const sourceTimestampMs = this.toSourceTimestampMs(event.update.data.timestamp);
     this.applyAisUpdate({
       context: match.context,
       type: match.type,
       path: match.path,
       value: event.update.data.value,
-      timestampMs: this.toTimestampMs(event.update.data.timestamp)
+      timestampMs: sourceTimestampMs ?? Date.now(),
+      sourceTimestampMs
     });
   }
 
@@ -308,8 +311,8 @@ export class AisProcessingService {
     if (!track) return;
 
     track.lastUpdateAt = update.timestampMs;
-    if (this.isAisEmissionPath(update.path)) {
-      track.lastAisUpdateAt = update.timestampMs;
+    if (this.isAisEmissionPath(update.path) && update.sourceTimestampMs !== null) {
+      track.lastAisUpdateAt = update.sourceTimestampMs;
     }
     if (update.path.startsWith('navigation.closestApproach.') && this.isVesselLike(track) && !track.closestApproach) {
       track.closestApproach = {};
@@ -463,7 +466,7 @@ export class AisProcessingService {
           const latitude = this.toNumberOrUndefined(update.value);
           if (latitude === undefined) break;
           track.position = { ...(track.position ?? {}), latitude };
-          track.lastPositionAt = update.timestampMs;
+          track.lastPositionAt = update.sourceTimestampMs ?? update.timestampMs;
         }
         break;
       case 'navigation.position.longitude':
@@ -471,7 +474,7 @@ export class AisProcessingService {
           const longitude = this.toNumberOrUndefined(update.value);
           if (longitude === undefined) break;
           track.position = { ...(track.position ?? {}), longitude };
-          track.lastPositionAt = update.timestampMs;
+          track.lastPositionAt = update.sourceTimestampMs ?? update.timestampMs;
         }
         break;
       case 'navigation.position.altitude':
@@ -487,7 +490,7 @@ export class AisProcessingService {
           const position = this.readPositionValue(update.value);
           if (position) {
             track.position = position;
-            track.lastPositionAt = update.timestampMs;
+            track.lastPositionAt = update.sourceTimestampMs ?? update.timestampMs;
           }
         }
         break;
@@ -733,10 +736,10 @@ export class AisProcessingService {
     }
     return undefined;
   }
-  private toTimestampMs(value: Date | string | null | undefined): number {
-    if (!value) return Date.now();
+  private toSourceTimestampMs(value: Date | string | null | undefined): number | null {
+    if (!value) return null;
     const ts = value instanceof Date ? value.getTime() : Date.parse(value);
-    return Number.isFinite(ts) ? ts : Date.now();
+    return Number.isFinite(ts) ? ts : null;
   }
 
   private toNumberOrUndefined(value: unknown): number | undefined {
