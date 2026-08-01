@@ -140,6 +140,7 @@ interface RadarFilterState {
   encapsulation: ViewEncapsulation.None,
 })
 export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
+  private static readonly DISPLAY_MODE_STORAGE_PREFIX = 'kip.aisRadar.displayMode.';
   private static readonly TARGET_ICON_SIZE_PX = 16;
   private static readonly OWN_SHIP_ICON_SIZE_PX = 84;
   private static readonly HIT_RADIUS_PX = 28;
@@ -199,7 +200,9 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     return this.localViewMode() ?? (this.runtime.options()?.ais?.viewMode ?? 'course-up');
   });
   protected readonly effectiveDisplayMode = computed<AisDisplayMode>(() => {
-    return this.localDisplayMode() ?? (this.runtime.options()?.ais?.displayMode === 'list' ? 'list' : 'radar');
+    return this.localDisplayMode()
+      ?? this.readStoredDisplayMode()
+      ?? (this.runtime.options()?.ais?.displayMode === 'list' ? 'list' : 'radar');
   });
   protected readonly effectiveRangeIndex = computed<number>(() => {
     const cfgIndex = this.resolveRangeIndex(this.runtime.options()?.ais);
@@ -686,7 +689,9 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   }
 
   protected toggleDisplayMode(): void {
-    this.localDisplayMode.set(this.effectiveDisplayMode() === 'list' ? 'radar' : 'list');
+    const nextMode = this.effectiveDisplayMode() === 'list' ? 'radar' : 'list';
+    this.localDisplayMode.set(nextMode);
+    this.writeStoredDisplayMode(nextMode);
     this.closeTargetMenu();
   }
 
@@ -749,9 +754,9 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     return {
       id: track.id,
       raw: track,
-      label: this.buildTargetMenuLabel(track),
+      label: this.resolveListPrimaryLabel(track),
       typeLabel: this.resolveListTypeLabel(track),
-      subLabel: track.mmsi ?? track.ais.class ?? '',
+      subLabel: this.resolveListSubLabel(track),
       distanceNm,
       bearingTrue,
       sog: vessel?.speedOverGround ?? null,
@@ -772,6 +777,23 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     return shipType ?? 'Vessel';
   }
 
+  private resolveListPrimaryLabel(track: AisTrack): string {
+    const name = track.name?.trim();
+    if (name) return name;
+    if (this.isAton(track) && track.typeName) return track.typeName;
+    return this.resolveListTypeLabel(track);
+  }
+
+  private resolveListSubLabel(track: AisTrack): string {
+    const details = [
+      track.name?.trim() ? this.resolveListTypeLabel(track) : null,
+      track.mmsi,
+      this.isVesselLike(track) ? track.callsign : null,
+      track.ais.class ? `Class ${track.ais.class}` : null
+    ].filter((value): value is string => Boolean(value));
+    return details.join(' - ');
+  }
+
   private resolveListTypeClass(track: AisTrack): string {
     if (track.type !== 'vessel') return `type-${track.type}`;
     const key = this.resolveVesselIconKey(track);
@@ -779,6 +801,27 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
       ? `vessel-${key.slice('vessel/'.length).replace(/[^a-z0-9-]/gi, '-').toLowerCase()}`
       : 'vessel-unknown';
     return `type-vessel ${vesselClass}`;
+  }
+
+  private readStoredDisplayMode(): AisDisplayMode | null {
+    try {
+      const value = globalThis.localStorage?.getItem(this.displayModeStorageKey());
+      return value === 'list' || value === 'radar' ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeStoredDisplayMode(mode: AisDisplayMode): void {
+    try {
+      globalThis.localStorage?.setItem(this.displayModeStorageKey(), mode);
+    } catch {
+      // Runtime toggle still works without localStorage.
+    }
+  }
+
+  private displayModeStorageKey(): string {
+    return `${WidgetAisRadarComponent.DISPLAY_MODE_STORAGE_PREFIX}${this.id()}`;
   }
 
   private resolveRiskClass(track: AisVessel | AisSar | null): string {
