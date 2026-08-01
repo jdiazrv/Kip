@@ -459,10 +459,10 @@ widget-ais-radar {
   .ais-target-list-header,
   .ais-target-list-row {
     display: grid;
-    grid-template-columns: minmax(140px, 2fr) repeat(7, minmax(64px, 1fr));
+    grid-template-columns: 6px minmax(140px, 2fr) repeat(7, minmax(64px, 1fr));
     gap: 8px;
     align-items: center;
-    min-width: 760px;
+    min-width: 780px;
     padding: 8px 10px;
   }
 
@@ -507,6 +507,49 @@ widget-ais-radar {
     opacity: 0.6;
   }
 
+  .ais-list-type-bar {
+    align-self: stretch;
+    min-height: 34px;
+    width: 6px;
+    border-radius: 4px;
+    background: var(--kip-contrast-dim-color);
+  }
+
+  .ais-list-type-bar.type-vessel {
+    background: var(--kip-blue-color);
+  }
+
+  .ais-list-type-bar.type-sar,
+  .ais-list-type-bar.vessel-sar {
+    background: var(--kip-zone-alarm-color);
+  }
+
+  .ais-list-type-bar.type-aton {
+    background: var(--kip-green-color);
+  }
+
+  .ais-list-type-bar.type-basestation {
+    background: var(--kip-purple-color);
+  }
+
+  .ais-list-type-bar.vessel-passenger {
+    background: var(--kip-orange-color);
+  }
+
+  .ais-list-type-bar.vessel-cargo,
+  .ais-list-type-bar.vessel-tanker {
+    background: var(--kip-zone-warn-color);
+  }
+
+  .ais-list-type-bar.vessel-pleasurecraft,
+  .ais-list-type-bar.vessel-sailing {
+    background: var(--kip-green-color);
+  }
+
+  .ais-list-type-bar.vessel-highspeed {
+    background: var(--kip-zone-alert-color);
+  }
+
   .ais-list-target {
     display: flex;
     min-width: 0;
@@ -547,7 +590,7 @@ widget-ais-radar {
 
   .ais-radar-mode-toggle-button {
     position: absolute;
-    top: 12px;
+    top: 64px;
     right: 12px;
     z-index: 2;
     @include mat.fab-overrides((
@@ -596,11 +639,15 @@ widget-ais-radar {
   }
 
   .ais-radar-range-plus {
-    top: 64px;
+    top: 116px;
   }
 
   .ais-radar-range-minus {
-    top: 116px;
+    top: 168px;
+  }
+
+  .ais-radar-display-toggle-button {
+    top: 12px;
   }
 
   .ais-radar-menu-anchor {

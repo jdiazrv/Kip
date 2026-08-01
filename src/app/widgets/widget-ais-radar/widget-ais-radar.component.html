@@ -1,6 +1,16 @@
 <div class="ais-radar-container" kipResizeObserver (kipResize)="onResized($event)">
   <button
     type="button"
+    class="ais-radar-range-button ais-radar-display-toggle-button"
+    matMiniFab
+    [matTooltip]="effectiveDisplayMode() === 'list' ? 'Show radar' : 'Show list'"
+    [attr.aria-label]="effectiveDisplayMode() === 'list' ? 'Show AIS radar' : 'Show AIS list'"
+    (click)="toggleDisplayMode()"
+  >
+    <mat-icon>{{ effectiveDisplayMode() === 'list' ? 'radar' : 'view_list' }}</mat-icon>
+  </button>
+  <button
+    type="button"
     class="ais-radar-mode-toggle-button"
     [class.is-hidden]="effectiveDisplayMode() === 'list'"
     matMiniFab
@@ -69,6 +79,7 @@
   @if (effectiveDisplayMode() === 'list') {
     <div class="ais-target-list" role="table" aria-label="AIS target list">
       <div class="ais-target-list-header" role="row">
+        <span></span>
         <span>Target</span>
         <span>Dist</span>
         <span>Brg</span>
@@ -88,6 +99,7 @@
           role="row"
           (click)="openListRow(row)"
         >
+          <span class="ais-list-type-bar {{ row.typeClass }}" [matTooltip]="row.typeLabel"></span>
           <span class="ais-list-target">
             <strong>{{ row.label }}</strong>
             <small>

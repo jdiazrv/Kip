@@ -120,6 +120,7 @@ interface AisListRow {
   tcpaSeconds: number | null;
   ageSeconds: number | null;
   riskClass: string;
+  typeClass: string;
 }
 
 interface RadarFilterState {
@@ -192,12 +193,13 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   private renderState: RenderState | null = null;
   private selectedId = signal<string | null>(null);
   private readonly localViewMode = signal<ViewMode | null>(null);
+  private readonly localDisplayMode = signal<AisDisplayMode | null>(null);
   private readonly localRangeIndex = signal<number | null>(null);
   protected readonly effectiveViewMode = computed<ViewMode>(() => {
     return this.localViewMode() ?? (this.runtime.options()?.ais?.viewMode ?? 'course-up');
   });
   protected readonly effectiveDisplayMode = computed<AisDisplayMode>(() => {
-    return this.runtime.options()?.ais?.displayMode === 'list' ? 'list' : 'radar';
+    return this.localDisplayMode() ?? (this.runtime.options()?.ais?.displayMode === 'list' ? 'list' : 'radar');
   });
   protected readonly effectiveRangeIndex = computed<number>(() => {
     const cfgIndex = this.resolveRangeIndex(this.runtime.options()?.ais);
@@ -301,6 +303,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
 
     effect(() => {
       this.localViewMode();
+      this.localDisplayMode();
       this.localRangeIndex();
       this.selectedId();
       this.filterState();
@@ -682,6 +685,11 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  protected toggleDisplayMode(): void {
+    this.localDisplayMode.set(this.effectiveDisplayMode() === 'list' ? 'radar' : 'list');
+    this.closeTargetMenu();
+  }
+
   protected openListRow(row: AisListRow): void {
     this.openTargetDialog(row.raw, this.resolveIconCached(row.raw).href);
   }
@@ -751,7 +759,8 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
       cpaNm,
       tcpaSeconds,
       ageSeconds,
-      riskClass
+      riskClass,
+      typeClass: this.resolveListTypeClass(track)
     };
   }
 
@@ -761,6 +770,15 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     if (track.type === 'basestation') return 'Base';
     const shipType = this.isVesselLike(track) ? track.design?.aisShipType?.name : undefined;
     return shipType ?? 'Vessel';
+  }
+
+  private resolveListTypeClass(track: AisTrack): string {
+    if (track.type !== 'vessel') return `type-${track.type}`;
+    const key = this.resolveVesselIconKey(track);
+    const vesselClass = key?.startsWith('vessel/')
+      ? `vessel-${key.slice('vessel/'.length).replace(/[^a-z0-9-]/gi, '-').toLowerCase()}`
+      : 'vessel-unknown';
+    return `type-vessel ${vesselClass}`;
   }
 
   private resolveRiskClass(track: AisVessel | AisSar | null): string {
