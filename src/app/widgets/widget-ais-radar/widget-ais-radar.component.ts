@@ -268,7 +268,8 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   });
 
   protected readonly hasCollisionRiskData = this.ais.hasCollisionRiskData;
-  protected readonly listRows = computed<AisListRow[]>(() => {
+  protected readonly listRows = signal<AisListRow[]>([]);
+  private readonly computedListRows = computed<AisListRow[]>(() => {
     const ownPosition = this.ais.ownShip().position;
     const hasOwnPosition = this.hasValidPosition(ownPosition);
     const cfg = this.runtime.options()?.ais ?? WidgetAisRadarComponent.DEFAULT_CONFIG.ais!;
@@ -302,6 +303,13 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
         this.syncFiltersFromConfig(cfg);
       });
       this.scheduleRender();
+    });
+
+    effect(() => {
+      const rows = this.computedListRows();
+      untracked(() => {
+        this.ngZone.run(() => this.listRows.set(rows));
+      });
     });
 
     effect(() => {
@@ -747,8 +755,8 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     const distanceNm = ownPosition ? this.distanceNm(ownPosition, track.position) : null;
     const bearingTrue = ownPosition ? this.ais.getBearingTrue(ownPosition, track.position) : null;
     const vessel = this.isVesselLike(track) ? track : null;
-    const ageSeconds = track.lastUpdateAt ? Math.max(0, (Date.now() - track.lastUpdateAt) / 1000) : null;
-    const cpaNm = vessel?.closestApproach?.distance ?? null;
+    const ageSeconds = track.lastPositionAt ? Math.max(0, (Date.now() - track.lastPositionAt) / 1000) : null;
+    const cpaNm = this.resolveClosestApproachDistanceNm(vessel);
     const tcpaSeconds = vessel?.closestApproach?.timeTo ?? null;
     const riskClass = this.resolveRiskClass(vessel);
     return {
@@ -781,13 +789,13 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     const name = track.name?.trim();
     if (name) return name;
     if (this.isAton(track) && track.typeName) return track.typeName;
-    return this.resolveListTypeLabel(track);
+    return track.mmsi ?? this.resolveListTypeLabel(track);
   }
 
   private resolveListSubLabel(track: AisTrack): string {
     const details = [
-      track.name?.trim() ? this.resolveListTypeLabel(track) : null,
-      track.mmsi,
+      this.resolveListTypeLabel(track),
+      track.name?.trim() ? track.mmsi : null,
       this.isVesselLike(track) ? track.callsign : null,
       track.ais.class ? `Class ${track.ais.class}` : null
     ].filter((value): value is string => Boolean(value));
@@ -832,6 +840,12 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     if (numericRating < COLLISION_RISK_HIGH_THRESHOLD) return 'risk-high';
     if (numericRating < COLLISION_RISK_LOW_THRESHOLD) return 'risk-medium';
     return '';
+  }
+
+  private resolveClosestApproachDistanceNm(track: AisVessel | AisSar | null): number | null {
+    const rawDistance = track?.closestApproach?.distance;
+    if (typeof rawDistance !== 'number' || !Number.isFinite(rawDistance)) return null;
+    return rawDistance / 1852;
   }
 
   private syncFiltersFromConfig(cfg: IWidgetSvcConfig): void {
