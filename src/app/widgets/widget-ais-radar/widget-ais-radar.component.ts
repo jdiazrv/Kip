@@ -112,7 +112,7 @@ interface AisListRow {
   label: string;
   typeLabel: string;
   subLabel: string;
-  distanceNm: number;
+  distanceNm: number | null;
   bearingTrue: number | null;
   sog: number | null;
   cog: number | null;
@@ -265,16 +265,21 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   protected readonly hasCollisionRiskData = this.ais.hasCollisionRiskData;
   protected readonly listRows = computed<AisListRow[]>(() => {
     const ownPosition = this.ais.ownShip().position;
-    if (!ownPosition || !this.hasValidPosition(ownPosition)) return [];
+    const hasOwnPosition = this.hasValidPosition(ownPosition);
     const cfg = this.runtime.options()?.ais ?? WidgetAisRadarComponent.DEFAULT_CONFIG.ais!;
     const showLost = cfg.showLostTargets ?? true;
     const showUnconfirmed = cfg.showUnconfirmedTargets ?? true;
 
     return this.ais.targets()
       .filter(track => this.shouldShowInList(track, showLost, showUnconfirmed))
-      .map(track => this.toListRow(track, ownPosition))
+      .map(track => this.toListRow(track, hasOwnPosition ? ownPosition : null))
       .filter((row): row is AisListRow => row !== null)
-      .sort((a, b) => a.distanceNm - b.distanceNm);
+      .sort((a, b) => {
+        if (a.distanceNm === null && b.distanceNm === null) return a.label.localeCompare(b.label);
+        if (a.distanceNm === null) return 1;
+        if (b.distanceNm === null) return -1;
+        return a.distanceNm - b.distanceNm;
+      });
   });
 
   constructor() {
@@ -724,10 +729,10 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     return !this.shouldFilterTarget(track);
   }
 
-  private toListRow(track: AisTrack, ownPosition: Position): AisListRow | null {
+  private toListRow(track: AisTrack, ownPosition: Position | null): AisListRow | null {
     if (!track.position || !this.hasValidPosition(track.position)) return null;
-    const distanceNm = this.distanceNm(ownPosition, track.position);
-    const bearingTrue = this.ais.getBearingTrue(ownPosition, track.position);
+    const distanceNm = ownPosition ? this.distanceNm(ownPosition, track.position) : null;
+    const bearingTrue = ownPosition ? this.ais.getBearingTrue(ownPosition, track.position) : null;
     const vessel = this.isVesselLike(track) ? track : null;
     const ageSeconds = track.lastUpdateAt ? Math.max(0, (Date.now() - track.lastUpdateAt) / 1000) : null;
     const cpaNm = vessel?.closestApproach?.distance ?? null;
