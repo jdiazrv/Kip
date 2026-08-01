@@ -1,0 +1,32 @@
+name: Build Package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build KIP
+        run: npm run build:all
+
+      - name: Pack KIP
+        run: npm pack
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: kip-package
+          path: "*.tgz"
