@@ -147,11 +147,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   private static readonly ICON_RENDER_DEBOUNCE_MS = 50;
   private static readonly ROTATION_SETTLE_DEADBAND_DEG = 1;
   private static readonly ROTATION_ONLY_FRAME_MS = 33;
-  private static readonly LIST_HEADER_HEIGHT_PX = 42;
-  private static readonly LIST_FOOTER_HEIGHT_PX = 54;
-  private static readonly LIST_ROW_HEIGHT_PX = 58;
-  private static readonly LIST_MIN_PAGE_SIZE = 5;
-  private static readonly LIST_MAX_PAGE_SIZE = 18;
+  private static readonly LIST_PAGE_SIZE = 10;
 
   public id = input.required<string>();
   public type = input.required<string>();
@@ -274,18 +270,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   });
 
   protected readonly hasCollisionRiskData = this.ais.hasCollisionRiskData;
-  protected readonly listPageSize = computed<number>(() => {
-    const height = this.hostSize()?.height ?? 0;
-    const availableRowsHeight = height
-      - WidgetAisRadarComponent.LIST_HEADER_HEIGHT_PX
-      - WidgetAisRadarComponent.LIST_FOOTER_HEIGHT_PX
-      - 20;
-    const rows = Math.floor(availableRowsHeight / WidgetAisRadarComponent.LIST_ROW_HEIGHT_PX);
-    return Math.min(
-      WidgetAisRadarComponent.LIST_MAX_PAGE_SIZE,
-      Math.max(WidgetAisRadarComponent.LIST_MIN_PAGE_SIZE, rows)
-    );
-  });
+  protected readonly listPageSize = signal(WidgetAisRadarComponent.LIST_PAGE_SIZE).asReadonly();
   protected readonly computedListRows = computed<AisListRow[]>(() => {
     const ownPosition = this.ais.ownShip().position;
     const hasOwnPosition = this.hasValidPosition(ownPosition);

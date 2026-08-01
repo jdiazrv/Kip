@@ -77,7 +77,16 @@
   }
   <svg #radarSvg class="ais-radar" [class.is-hidden]="effectiveDisplayMode() === 'list'" role="img" aria-label="AIS radar display"></svg>
   @if (effectiveDisplayMode() === 'list') {
-    <div class="ais-target-list" role="table" aria-label="AIS target list">
+    <div
+      class="ais-target-list"
+      role="table"
+      aria-label="AIS target list"
+      (pointerdown)="$event.stopPropagation()"
+      (pointermove)="$event.stopPropagation()"
+      (touchstart)="$event.stopPropagation()"
+      (touchmove)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    >
       <div class="ais-target-list-header" role="row">
         <span></span>
         <span>Target</span>
@@ -98,7 +107,7 @@
             [class.risk-medium]="row.riskClass === 'risk-medium'"
             [class.is-stale]="row.raw.ais.status === 'lost'"
             role="row"
-            (click)="openListRow(row)"
+            (click)="$event.stopPropagation(); openListRow(row)"
           >
             <span class="ais-list-type-bar {{ row.typeClass }}" [matTooltip]="row.typeLabel"></span>
             <span class="ais-list-target">
@@ -133,7 +142,7 @@
             matTooltip="Previous AIS targets"
             aria-label="Previous AIS targets"
             [disabled]="!canPageBack()"
-            (click)="previousListPage()"
+            (click)="$event.stopPropagation(); previousListPage()"
           >
             <mat-icon>chevron_left</mat-icon>
           </button>
@@ -144,7 +153,7 @@
             matTooltip="Next AIS targets"
             aria-label="Next AIS targets"
             [disabled]="!canPageForward()"
-            (click)="nextListPage()"
+            (click)="$event.stopPropagation(); nextListPage()"
           >
             <mat-icon>chevron_right</mat-icon>
           </button>

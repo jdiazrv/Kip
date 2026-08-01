@@ -453,6 +453,10 @@ widget-ais-radar {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    overscroll-behavior: contain;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
     border-radius: 12px;
     background: var(--kip-card-background-color);
     color: var(--kip-contrast-color);
@@ -495,6 +499,7 @@ widget-ais-radar {
     font: inherit;
     text-align: left;
     cursor: pointer;
+    touch-action: manipulation;
   }
 
   .ais-target-list-row:hover,
@@ -594,6 +599,7 @@ widget-ais-radar {
     padding: 6px 10px;
     border-top: 1px solid var(--kip-contrast-dimmer-color);
     color: var(--kip-contrast-color);
+    touch-action: manipulation;
   }
 
   .ais-target-list-pager span {
