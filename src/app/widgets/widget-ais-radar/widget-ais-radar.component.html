@@ -89,38 +89,65 @@
         <span>TCPA</span>
         <span>Age</span>
       </div>
-      @for (row of computedListRows(); track trackListRow($index, row)) {
-        <button
-          type="button"
-          class="ais-target-list-row"
-          [class.risk-high]="row.riskClass === 'risk-high'"
-          [class.risk-medium]="row.riskClass === 'risk-medium'"
-          [class.is-stale]="row.raw.ais.status === 'lost'"
-          role="row"
-          (click)="openListRow(row)"
-        >
-          <span class="ais-list-type-bar {{ row.typeClass }}" [matTooltip]="row.typeLabel"></span>
-          <span class="ais-list-target">
-            <strong>{{ row.label }}</strong>
-            <small>
-              {{ row.typeLabel }}
-              @if (row.subLabel) {
-                <span>&middot; {{ row.subLabel }}</span>
-              }
-            </small>
-          </span>
-          <span>{{ formatDistance(row.distanceNm) }}</span>
-          <span>{{ formatBearing(row.bearingTrue) }}</span>
-          <span>{{ formatSpeed(row.sog) }}</span>
-          <span>{{ formatBearing(row.cog) }}</span>
-          <span>{{ formatDistance(row.cpaNm) }}</span>
-          <span>{{ formatTime(row.tcpaSeconds) }}</span>
-          <span>{{ formatAge(row.ageSeconds) }}</span>
-        </button>
-      } @empty {
-        <div class="ais-target-list-empty">
-          <mat-icon>radar</mat-icon>
-          <span>No AIS targets with position</span>
+      <div class="ais-target-list-body">
+        @for (row of pagedListRows(); track trackListRow($index, row)) {
+          <button
+            type="button"
+            class="ais-target-list-row"
+            [class.risk-high]="row.riskClass === 'risk-high'"
+            [class.risk-medium]="row.riskClass === 'risk-medium'"
+            [class.is-stale]="row.raw.ais.status === 'lost'"
+            role="row"
+            (click)="openListRow(row)"
+          >
+            <span class="ais-list-type-bar {{ row.typeClass }}" [matTooltip]="row.typeLabel"></span>
+            <span class="ais-list-target">
+              <strong>{{ row.label }}</strong>
+              <small>
+                {{ row.typeLabel }}
+                @if (row.subLabel) {
+                  <span>&middot; {{ row.subLabel }}</span>
+                }
+              </small>
+            </span>
+            <span>{{ formatDistance(row.distanceNm) }}</span>
+            <span>{{ formatBearing(row.bearingTrue) }}</span>
+            <span>{{ formatSpeed(row.sog) }}</span>
+            <span>{{ formatBearing(row.cog) }}</span>
+            <span>{{ formatDistance(row.cpaNm) }}</span>
+            <span>{{ formatTime(row.tcpaSeconds) }}</span>
+            <span>{{ formatAge(row.ageSeconds) }}</span>
+          </button>
+        } @empty {
+          <div class="ais-target-list-empty">
+            <mat-icon>radar</mat-icon>
+            <span>No AIS targets with position</span>
+          </div>
+        }
+      </div>
+      @if (computedListRows().length > 0) {
+        <div class="ais-target-list-pager">
+          <button
+            type="button"
+            matMiniFab
+            matTooltip="Previous AIS targets"
+            aria-label="Previous AIS targets"
+            [disabled]="!canPageBack()"
+            (click)="previousListPage()"
+          >
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <span>{{ listRangeLabel() }}</span>
+          <button
+            type="button"
+            matMiniFab
+            matTooltip="Next AIS targets"
+            aria-label="Next AIS targets"
+            [disabled]="!canPageForward()"
+            (click)="nextListPage()"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
         </div>
       }
     </div>

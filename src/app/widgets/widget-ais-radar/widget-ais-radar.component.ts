@@ -147,6 +147,11 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   private static readonly ICON_RENDER_DEBOUNCE_MS = 50;
   private static readonly ROTATION_SETTLE_DEADBAND_DEG = 1;
   private static readonly ROTATION_ONLY_FRAME_MS = 33;
+  private static readonly LIST_HEADER_HEIGHT_PX = 42;
+  private static readonly LIST_FOOTER_HEIGHT_PX = 54;
+  private static readonly LIST_ROW_HEIGHT_PX = 58;
+  private static readonly LIST_MIN_PAGE_SIZE = 5;
+  private static readonly LIST_MAX_PAGE_SIZE = 18;
 
   public id = input.required<string>();
   public type = input.required<string>();
@@ -196,6 +201,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   private readonly localViewMode = signal<ViewMode | null>(null);
   private readonly localDisplayMode = signal<AisDisplayMode | null>(null);
   private readonly localRangeIndex = signal<number | null>(null);
+  protected readonly listPageIndex = signal(0);
   protected readonly effectiveViewMode = computed<ViewMode>(() => {
     return this.localViewMode() ?? (this.runtime.options()?.ais?.viewMode ?? 'course-up');
   });
@@ -268,6 +274,18 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
   });
 
   protected readonly hasCollisionRiskData = this.ais.hasCollisionRiskData;
+  protected readonly listPageSize = computed<number>(() => {
+    const height = this.hostSize()?.height ?? 0;
+    const availableRowsHeight = height
+      - WidgetAisRadarComponent.LIST_HEADER_HEIGHT_PX
+      - WidgetAisRadarComponent.LIST_FOOTER_HEIGHT_PX
+      - 20;
+    const rows = Math.floor(availableRowsHeight / WidgetAisRadarComponent.LIST_ROW_HEIGHT_PX);
+    return Math.min(
+      WidgetAisRadarComponent.LIST_MAX_PAGE_SIZE,
+      Math.max(WidgetAisRadarComponent.LIST_MIN_PAGE_SIZE, rows)
+    );
+  });
   protected readonly computedListRows = computed<AisListRow[]>(() => {
     const ownPosition = this.ais.ownShip().position;
     const hasOwnPosition = this.hasValidPosition(ownPosition);
@@ -286,6 +304,27 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
         return a.distanceNm - b.distanceNm;
       });
   });
+  protected readonly listPageCount = computed<number>(() => {
+    return Math.max(1, Math.ceil(this.computedListRows().length / this.listPageSize()));
+  });
+  protected readonly pagedListRows = computed<AisListRow[]>(() => {
+    const rows = this.computedListRows();
+    const pageSize = this.listPageSize();
+    const pageIndex = Math.min(this.listPageIndex(), this.listPageCount() - 1);
+    const start = pageIndex * pageSize;
+    return rows.slice(start, start + pageSize);
+  });
+  protected readonly listRangeLabel = computed<string>(() => {
+    const total = this.computedListRows().length;
+    if (total === 0) return '0 / 0';
+    const pageSize = this.listPageSize();
+    const pageIndex = Math.min(this.listPageIndex(), this.listPageCount() - 1);
+    const start = pageIndex * pageSize + 1;
+    const end = Math.min(total, start + pageSize - 1);
+    return `${start}-${end} / ${total}`;
+  });
+  protected readonly canPageBack = computed<boolean>(() => this.listPageIndex() > 0);
+  protected readonly canPageForward = computed<boolean>(() => this.listPageIndex() < this.listPageCount() - 1);
 
   constructor() {
     this.warnIfRemoteDataDisabled();
@@ -313,6 +352,20 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
       untracked(() => {
         this.scheduleRender();
       });
+    });
+
+    effect(() => {
+      const pageCount = this.listPageCount();
+      const currentPage = this.listPageIndex();
+      if (currentPage >= pageCount) {
+        untracked(() => this.listPageIndex.set(Math.max(0, pageCount - 1)));
+      }
+    });
+
+    effect(() => {
+      this.effectiveDisplayMode();
+      this.filterState();
+      untracked(() => this.listPageIndex.set(0));
     });
   }
 
@@ -692,7 +745,16 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     const nextMode = this.effectiveDisplayMode() === 'list' ? 'radar' : 'list';
     this.localDisplayMode.set(nextMode);
     this.writeStoredDisplayMode(nextMode);
+    this.listPageIndex.set(0);
     this.closeTargetMenu();
+  }
+
+  protected previousListPage(): void {
+    this.listPageIndex.update(page => Math.max(0, page - 1));
+  }
+
+  protected nextListPage(): void {
+    this.listPageIndex.update(page => Math.min(this.listPageCount() - 1, page + 1));
   }
 
   protected openListRow(row: AisListRow): void {
@@ -747,7 +809,7 @@ export class WidgetAisRadarComponent implements AfterViewInit, OnDestroy {
     const distanceNm = ownPosition ? this.distanceNm(ownPosition, track.position) : null;
     const bearingTrue = ownPosition ? this.ais.getBearingTrue(ownPosition, track.position) : null;
     const vessel = this.isVesselLike(track) ? track : null;
-    const ageSeconds = track.lastPositionAt ? Math.max(0, (Date.now() - track.lastPositionAt) / 1000) : null;
+    const ageSeconds = track.lastAisUpdateAt ? Math.max(0, (Date.now() - track.lastAisUpdateAt) / 1000) : null;
     const cpaNm = this.resolveClosestApproachDistanceNm(vessel);
     const tcpaSeconds = this.resolveClosestApproachTimeSeconds(vessel);
     const riskClass = this.resolveRiskClass(vessel);

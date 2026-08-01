@@ -448,12 +448,20 @@ widget-ais-radar {
   }
 
   .ais-target-list {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
-    overflow: auto;
+    overflow: hidden;
     border-radius: 12px;
     background: var(--kip-card-background-color);
     color: var(--kip-contrast-color);
+  }
+
+  .ais-target-list-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .ais-target-list-header,
@@ -467,8 +475,7 @@ widget-ais-radar {
   }
 
   .ais-target-list-header {
-    position: sticky;
-    top: 0;
+    flex: 0 0 auto;
     z-index: 1;
     font-size: 12px;
     font-weight: 700;
@@ -480,6 +487,7 @@ widget-ais-radar {
 
   .ais-target-list-row {
     width: 100%;
+    min-height: 58px;
     border: 0;
     border-bottom: 1px solid var(--kip-contrast-dimmer-color);
     background: transparent;
@@ -568,12 +576,34 @@ widget-ais-radar {
   }
 
   .ais-target-list-empty {
-    height: calc(100% - 40px);
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     color: var(--kip-contrast-dim-color);
+  }
+
+  .ais-target-list-pager {
+    flex: 0 0 54px;
+    min-width: 780px;
+    display: grid;
+    grid-template-columns: 56px 1fr 56px;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-top: 1px solid var(--kip-contrast-dimmer-color);
+    color: var(--kip-contrast-color);
+  }
+
+  .ais-target-list-pager span {
+    text-align: center;
+    font-weight: 700;
+    color: var(--kip-contrast-dim-color);
+  }
+
+  .ais-target-list-pager button {
+    justify-self: center;
   }
 
   .radar-rings .ring {

@@ -34,6 +34,7 @@ export interface AisTarget {
   };
   position?: Position;
   lastPositionAt?: number; // timestamp of last position report
+  lastAisUpdateAt?: number; // timestamp of last AIS-originated target report
   lastUpdateAt: number; // timestamp of last update of any kind
   id: string;
   conflicted?: boolean;
@@ -307,6 +308,9 @@ export class AisProcessingService {
     if (!track) return;
 
     track.lastUpdateAt = update.timestampMs;
+    if (this.isAisEmissionPath(update.path)) {
+      track.lastAisUpdateAt = update.timestampMs;
+    }
     if (update.path.startsWith('navigation.closestApproach.') && this.isVesselLike(track) && !track.closestApproach) {
       track.closestApproach = {};
     }
@@ -770,8 +774,15 @@ export class AisProcessingService {
       mmsi,
       position: undefined,
       lastUpdateAt: timestampMs,
+      lastAisUpdateAt: undefined,
       lastPositionAt: undefined
     };
+  }
+
+  private isAisEmissionPath(path: string): boolean {
+    return !path.startsWith('navigation.closestApproach.')
+      && path !== 'navigation.distanceToSelf'
+      && path !== 'sensors.ais.status';
   }
 
   private isVesselLike(track: AisTrack): track is AisVessel | AisSar {
